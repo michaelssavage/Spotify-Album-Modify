@@ -1,12 +1,12 @@
-import { useSession, signOut } from "next-auth/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useVanta from "components/Vanta";
-import Image from "next/image";
 import styled from "styled-components";
-import { shimmer, toBase64 } from "components/BlurImg";
+import Card from "components/Card";
 import { BsFillArrowDownCircleFill } from "react-icons/bs";
 import { IconContext } from "react-icons";
 import { Link } from "react-scroll";
+import { getSession } from "next-auth/react";
+import { getPlaylistTracks } from "lib/spotify";
 
 const Main = styled.main`
   height: 100vh;
@@ -22,7 +22,7 @@ const Container = styled.div`
   justify-content: center;
   flex-direction: column;
   padding: 1rem;
-  color: #fff;
+  color: #000000;
 `;
 
 const Header1 = styled.h1`
@@ -30,50 +30,6 @@ const Header1 = styled.h1`
   padding: 0.5rem;
   margin: 0;
   text-align: center;
-`;
-
-const NavHeader = styled.h3`
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  font-size: 0.8rem;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-`;
-
-const LogoutBtn = styled.button`
-  color: #fff;
-  background-color: transparent;
-  border: 4px solid #1ed760;
-  padding: 0.25rem 0.5rem;
-  margin-left: 0.5rem;
-  border-radius: 5%;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  &:hover {
-    border: 4px solid #29f370;
-    text-decoration: none;
-  }
-`;
-const PlaylistBtn = styled.button`
-  color: #fff;
-  background-color: transparent;
-  border: 4px solid #2941ab;
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 1rem;
-  border-radius: 5%;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  &:hover {
-    border: 4px solid #3959e7;
-    text-decoration: none;
-  }
 `;
 
 const Playlists = styled.div`
@@ -87,65 +43,67 @@ const Playlists = styled.div`
 
 export default function Home() {
   const [list, setList] = useState([]);
-  const [clicked, setClicked] = useState(false);
-  const { data: session, status } = useSession();
 
-  const getMyPlaylists = async () => {
-    const res = await fetch("/api/playlists");
-    const { items } = await res.json();
-    setList(items);
-    setClicked(true);
-  };
   const vRef = useRef(null);
   const vantaRef = useVanta(vRef);
+
+  const handleGetTracks = async (url) => {
+    const res = await fetch("/api/tracks");
+    const { access_token } = await res.json();
+    console.log(access_token);
+    // const songs = await getPlaylistTracks(url, access_token);
+    // console.log(songs);
+  };
+
+  useEffect(() => {
+    const getMyPlaylists = async () => {
+      const res = await fetch("/api/playlists");
+      const { items } = await res.json();
+      setList(items);
+    };
+    getMyPlaylists();
+  }, []);
 
   return (
     <>
       <Main ref={vantaRef}>
         <Container>
-          <NavHeader>
-            {session?.token?.email ? (
-              <>
-                <span>Signed in as {session?.token?.email}</span>
-                <LogoutBtn onClick={() => signOut()}>Logout</LogoutBtn>
-              </>
-            ) : (
-              <></>
-            )}
-          </NavHeader>
-          <Header1>Album Modifier</Header1>
+          <Header1>Your Spotify Playlists</Header1>
 
-          {clicked ? (
-            <Link to="playlists" spy={true} smooth={true}>
-              <IconContext.Provider value={{ className: "arrowCtx" }}>
-                <BsFillArrowDownCircleFill />
-              </IconContext.Provider>
-            </Link>
-          ) : (
-            <PlaylistBtn onClick={() => getMyPlaylists()}>
-              Get all my playlists
-            </PlaylistBtn>
-          )}
+          <Link to="playlists" spy={true} smooth={true}>
+            <IconContext.Provider value={{ className: "arrowCtx" }}>
+              <BsFillArrowDownCircleFill />
+            </IconContext.Provider>
+          </Link>
         </Container>
       </Main>
 
       <Playlists id="playlists">
         {list.map((item) => (
-          <div key={item.id}>
-            <Image
-              src={item.images[0]?.url}
-              alt="Playlist Cover Art"
-              width={200}
-              height={200}
-              blurDataURL={`data:image/svg+xml;base64,${toBase64(
-                shimmer(1080, 720)
-              )}`}
-              placeholder="blur"
-            />
-            <p>{item.name}</p>
-          </div>
+          <Card
+            key={item.id}
+            item={item}
+            onClick={() => handleGetTracks(item.tracks.href)}
+          />
         ))}
       </Playlists>
     </>
   );
+}
+
+export async function getServerSideProps(context) {
+  const session = await getSession(context);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: { session },
+  };
 }

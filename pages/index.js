@@ -1,11 +1,12 @@
-import { useSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRef } from "react";
 import useVanta from "components/Vanta";
 import Image from "next/image";
 import styled from "styled-components";
+import { getSession } from "next-auth/react";
 
 const Main = styled.main`
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
 `;
 
@@ -17,7 +18,7 @@ const Container = styled.div`
   justify-content: center;
   flex-direction: column;
   padding: 1rem;
-  color: #fff;
+  color: #000000;
 `;
 
 const Header1 = styled.h1`
@@ -27,12 +28,11 @@ const Header1 = styled.h1`
 `;
 
 const LoginBtn = styled.button`
-  color: #fff;
   background-color: transparent;
-  border: 4px solid #1ed760;
+  border: 4px solid #000;
   font-size: 1.4rem;
   margin: 1rem;
-  padding: 1rem 2rem;
+  padding: 0.5rem 2rem;
   border-radius: 5%;
   text-decoration: none;
   display: flex;
@@ -56,14 +56,16 @@ const ImageWrap = styled.span`
 export default function Login() {
   const vRef = useRef(null);
   const vantaRef = useVanta(vRef);
-  const { data: session } = useSession();
 
   return (
     <Main ref={vantaRef}>
       <Container>
         <Header1>Album Modifier</Header1>
-        <h2>Replace songs that don't have the proper album version.</h2>
-        <LoginBtn onClick={() => signIn()}>
+        <h2>
+          Replace songs in your playlist that don't have the correct album
+          version.
+        </h2>
+        <LoginBtn onClick={signIn}>
           <span>Login with Spotify</span>
           <ImageWrap>
             <Image
@@ -77,4 +79,21 @@ export default function Login() {
       </Container>
     </Main>
   );
+}
+
+export async function getServerSideProps(context) {
+  const session = await getSession(context);
+
+  if (session) {
+    return {
+      redirect: {
+        destination: "/home",
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: { session },
+  };
 }
